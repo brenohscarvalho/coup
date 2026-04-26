@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Coup</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Tela principal -->
+  <div class="page" id="mainScreen">
+    <div class="card-panel" style="padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--brown);">Tesouro: <strong id="treasury">-</strong> 💰</span>
+        <span style="font-size:12px;color:var(--brown);" id="turnInfo">-</span>
+      </div>
+    </div>
+
+    <!-- Outros jogadores -->
+    <div class="card-panel">
+      <div class="section-label">Jogadores</div>
+      <div id="otherPlayers" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <!-- Suas cartas -->
+    <div class="card-panel">
+      <div class="section-label">Suas cartas</div>
+      <div class="my-cards" id="myCards"></div>
+      <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--brown-dark);">💰 <strong id="myCoins">-</strong> moedas</div>
+    </div>
+
+    <!-- Ações (só no seu turno) -->
+    <div class="card-panel" id="actionsPanel" style="display:none;">
+      <div id="generalActions" style="margin-bottom:10px;">
+        <div class="section-label">Ações Gerais</div>
+        <div class="actions" id="generalActionsButtons"></div>
+      </div>
+      <div id="myCardActions" style="margin-bottom:10px;">
+        <div class="section-label">Suas Cartas</div>
+        <div class="actions" id="myCardActionsButtons"></div>
+      </div>
+      <div id="bluffActions">
+        <div class="section-label">Blefar como...</div>
+        <div class="actions" id="bluffActionsButtons"></div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-red" id="btnCoup" style="display:none;">Golpe de Estado (💰7)</button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card-panel">
+      <div class="section-label">Log</div>
+      <div class="log" id="gameLog"></div>
+    </div>
+  </div>
+
+  <!-- Overlay: Reagir -->
+  <div class="overlay hidden" id="reactionOverlay">
+    <div class="overlay-panel">
+      <div class="reaction-info">
+        <div class="reaction-name" id="reactionTitle">-</div>
+        <div class="reaction-sub" id="reactionSub">-</div>
+      </div>
+      <div style="margin:10px 0;" class="reactions-passed" id="reactionsPassed"></div>
+      <div class="timer" id="reactionTimer"></div>
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn btn-green" id="btnPass">✓ PASSAR</button>
+        <div id="blockOptions"></div>
+        <button class="btn btn-outline" id="btnChallenge" style="display:none;">⚔ CONTESTAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay: Perder influência -->
+  <div class="overlay hidden" id="loseInfluenceOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-title">Escolha qual carta revelar</div>
+      <div class="actions" id="loseInfluenceOptions"></div>
+    </div>
+  </div>
+
+  <!-- Overlay: Trocar cartas -->
+  <div class="overlay hidden" id="exchangeOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-title">Escolha as cartas que quer manter</div>
+      <div class="subtitle" id="exchangeSubtitle"></div>
+      <div class="actions" style="margin-top:12px;" id="exchangeOptions"></div>
+      <button class="btn btn-primary" style="margin-top:12px;" id="btnConfirmExchange">CONFIRMAR</button>
+    </div>
+  </div>
+
+  <!-- Overlay: Investigar -->
+  <div class="overlay hidden" id="investigateOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-title" id="investigateTitle">Carta vista</div>
+      <div class="my-card" style="margin:12px auto;width:fit-content;" id="investigatedCard">-</div>
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn btn-red" id="btnForceSwap">Forçar troca</button>
+        <button class="btn btn-green" id="btnKeepCard">Manter carta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay: Fim de jogo -->
+  <div class="overlay hidden" id="gameOverOverlay">
+    <div class="overlay-panel" style="text-align:center;">
+      <div class="overlay-title">⚜ Fim da Partida ⚜</div>
+      <div id="winnerName" style="font-family:serif;font-size:20px;color:var(--brown-dark);margin:12px 0;">-</div>
+      <button class="btn btn-primary" onclick="window.location.href='/'">Jogar novamente</button>
+    </div>
+  </div>
+
+  <!-- Overlay: Escolher alvo -->
+  <div class="overlay hidden" id="targetOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-title" id="targetTitle">Escolha o alvo</div>
+      <div class="actions" id="targetOptions"></div>
+      <button class="btn btn-outline" style="margin-top:8px;" id="btnCancelTarget">Cancelar</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>
