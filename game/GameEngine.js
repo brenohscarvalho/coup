@@ -112,7 +112,185 @@ function loseInfluence(state, playerId, cardIndex) {
     return;
   }
 
+  afterLoseInfluence(state);
+}
+
+function hasCharacter(player, character) {
+  return player.cards.some(c => c.character === character && !c.revealed);
+}
+
+function resolveAction(state) {
+  const { type, actor, target } = state.pendingAction;
+  const actorPlayer = state.players.find(p => p.id === actor);
+
+  if (type === ACTIONS.FOREIGN_AID) {
+    actorPlayer.coins += 2;
+    state.treasury -= 2;
+    state.log.push(`${actorPlayer.name} recebeu Ajuda Externa (+2)`);
+    nextPlayer(state);
+    return;
+  }
+
+  if (type === ACTIONS.TAX) {
+    actorPlayer.coins += 3;
+    state.treasury -= 3;
+    state.log.push(`${actorPlayer.name} Taxou (+3)`);
+    nextPlayer(state);
+    return;
+  }
+
+  if (type === ACTIONS.ASSASSINATE) {
+    state.phase = PHASES.LOSE_INFLUENCE;
+    state.pendingAction.target = target;
+    return;
+  }
+
+  if (type === ACTIONS.EXTORT) {
+    const targetPlayer = state.players.find(p => p.id === target);
+    const stolen = Math.min(2, targetPlayer.coins);
+    targetPlayer.coins -= stolen;
+    actorPlayer.coins += stolen;
+    state.log.push(`${actorPlayer.name} extorquiu ${stolen} moedas de ${targetPlayer.name}`);
+    nextPlayer(state);
+    return;
+  }
+
+  if (type === ACTIONS.EXCHANGE) {
+    const count = state.variant === 'inquisitor' ? 1 : 2;
+    const { dealCards } = require('./Deck');
+    const extras = dealCards(state.deck, count);
+    actorPlayer._exchangeOptions = [...actorPlayer.cards.filter(c => !c.revealed), ...extras];
+    state.phase = PHASES.EXCHANGE_CARDS;
+    return;
+  }
+
+  if (type === ACTIONS.INVESTIGATE) {
+    const targetPlayer = state.players.find(p => p.id === target);
+    const hiddenCards = targetPlayer.cards.filter(c => !c.revealed);
+    state.pendingAction.investigatedCard = hiddenCards[0];
+    state.phase = PHASES.INVESTIGATE;
+    return;
+  }
+
   nextPlayer(state);
 }
 
-module.exports = { applyAction, loseInfluence, getValidActions, getActivePlayers, nextPlayer };
+function afterLoseInfluence(state) {
+  const pa = state.pendingAction;
+  if (!pa) return nextPlayer(state);
+  if (pa._afterChallengeLoss === 'action_resolves') {
+    pa._afterChallengeLoss = null;
+    resolveAction(state);
+  } else if (pa._afterChallengeLoss === 'block_upheld') {
+    pa._afterChallengeLoss = null;
+    nextPlayer(state);
+  } else {
+    nextPlayer(state);
+  }
+}
+
+function applyReaction(state, playerId, reaction) {
+  if (![PHASES.WAITING_REACTIONS, PHASES.WAITING_BLOCK_CHALLENGE].includes(state.phase)) {
+    throw new Error('Fase incorreta para reagir');
+  }
+
+  const pa = state.pendingAction;
+
+  // ---- WAITING_BLOCK_CHALLENGE: only pass or challenge the block ----
+  if (state.phase === PHASES.WAITING_BLOCK_CHALLENGE) {
+    if (reaction.response === 'pass') {
+      if (!pa.respondedBy.includes(playerId)) pa.respondedBy.push(playerId);
+      const othersThanBlocker = state.players.filter(
+        p => p.id !== pa.blockBy && p.id !== pa.actor && p.cards.some(c => !c.revealed)
+      );
+      if (othersThanBlocker.every(p => pa.respondedBy.includes(p.id))) {
+        state.log.push('Bloqueio aceito. Ação falhou.');
+        nextPlayer(state);
+      }
+      return;
+    }
+
+    if (reaction.response === 'challenge') {
+      const blocker = state.players.find(p => p.id === pa.blockBy);
+      if (hasCharacter(blocker, pa.blockCharacter)) {
+        // Block is real: challenger loses influence, action still fails
+        pa.challengeBy = playerId;
+        pa._afterChallengeLoss = 'block_upheld';
+        state.pendingAction.target = playerId;
+        state.phase = PHASES.LOSE_INFLUENCE;
+        state.log.push(`${pa.blockCharacter} confirmado. ${state.players.find(p => p.id === playerId).name} perde influência.`);
+        // Blocker exchanges confirmed card
+        const idx = blocker.cards.findIndex(c => c.character === pa.blockCharacter && !c.revealed);
+        const { dealCards, shuffle } = require('./Deck');
+        state.deck.push(blocker.cards[idx]);
+        const [newCard] = dealCards(state.deck, 1);
+        blocker.cards[idx] = { ...newCard, revealed: false };
+        shuffle(state.deck);
+      } else {
+        // Block was a bluff: blocker loses influence, action resolves
+        pa.challengeBy = playerId;
+        pa._afterChallengeLoss = 'action_resolves';
+        state.pendingAction.target = pa.blockBy;
+        state.phase = PHASES.LOSE_INFLUENCE;
+        state.log.push(`Blefe exposto. ${blocker.name} perde influência.`);
+      }
+      return;
+    }
+  }
+
+  // ---- WAITING_REACTIONS ----
+  if (reaction.response === 'pass') {
+    if (!pa.respondedBy.includes(playerId)) pa.respondedBy.push(playerId);
+    const othersExcludingActor = state.players.filter(
+      p => p.id !== pa.actor && p.cards.some(c => !c.revealed)
+    );
+    if (othersExcludingActor.every(p => pa.respondedBy.includes(p.id))) {
+      resolveAction(state);
+    }
+    return;
+  }
+
+  if (reaction.response === 'block') {
+    if (!BLOCKERS[pa.type]) throw new Error('Ação não pode ser bloqueada');
+    if (!BLOCKERS[pa.type].includes(reaction.character)) throw new Error('Personagem não bloqueia esta ação');
+    pa.blockBy = playerId;
+    pa.blockCharacter = reaction.character;
+    pa.respondedBy = [];
+    state.phase = PHASES.WAITING_BLOCK_CHALLENGE;
+    state.log.push(`${state.players.find(p => p.id === playerId).name} bloqueia com ${reaction.character}`);
+    return;
+  }
+
+  if (reaction.response === 'challenge') {
+    const requiredChar = ACTION_CHARACTER[pa.type];
+    const actorPlayer = state.players.find(p => p.id === pa.actor);
+    const required = Array.isArray(requiredChar) ? requiredChar : [requiredChar];
+    const actorHas = required.some(c => hasCharacter(actorPlayer, c));
+
+    if (actorHas) {
+      // Challenger loses, action continues
+      pa.challengeBy = playerId;
+      pa._afterChallengeLoss = 'action_resolves';
+      state.pendingAction.target = playerId;
+      state.phase = PHASES.LOSE_INFLUENCE;
+      state.log.push(`${actorPlayer.name} prova ${required[0]}. ${state.players.find(p => p.id === playerId).name} perde influência.`);
+      // Actor exchanges the confirmed card
+      const matchChar = required.find(c => hasCharacter(actorPlayer, c));
+      const idx = actorPlayer.cards.findIndex(c => c.character === matchChar && !c.revealed);
+      const { dealCards, shuffle } = require('./Deck');
+      state.deck.push(actorPlayer.cards[idx]);
+      const [newCard] = dealCards(state.deck, 1);
+      actorPlayer.cards[idx] = { ...newCard, revealed: false };
+      shuffle(state.deck);
+    } else {
+      // Actor was bluffing: actor loses influence, action fails
+      pa.challengeBy = playerId;
+      pa._afterChallengeLoss = 'action_fails';
+      state.pendingAction.target = pa.actor;
+      state.phase = PHASES.LOSE_INFLUENCE;
+      state.log.push(`${actorPlayer.name} não tem ${required[0]}. Perde influência.`);
+    }
+  }
+}
+
+module.exports = { applyAction, applyReaction, afterLoseInfluence, loseInfluence, getValidActions, getActivePlayers, nextPlayer };

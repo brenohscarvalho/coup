@@ -87,3 +87,64 @@ describe('loseInfluence', () => {
     expect(eliminated.cards.every(c => c.revealed)).toBe(true);
   });
 });
+
+describe('react — pass', () => {
+  test('quando todos passam, ajuda externa resolve (+2 moedas)', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    state.players.find(p => p.id === actor).coins = 0;
+    GameEngine.applyAction(state, actor, { type: ACTIONS.FOREIGN_AID });
+    const others = state.players.filter(p => p.id !== actor);
+    others.forEach(p => GameEngine.applyReaction(state, p.id, { response: 'pass' }));
+    expect(state.players.find(p => p.id === actor).coins).toBe(2);
+    expect(state.currentPlayer).not.toBe(actor);
+  });
+});
+
+describe('react — block', () => {
+  test('duque bloqueia ajuda externa', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    GameEngine.applyAction(state, actor, { type: ACTIONS.FOREIGN_AID });
+    const blocker = state.players.find(p => p.id !== actor);
+    GameEngine.applyReaction(state, blocker.id, { response: 'block', character: 'duke' });
+    expect(state.phase).toBe(PHASES.WAITING_BLOCK_CHALLENGE);
+    expect(state.pendingAction.blockBy).toBe(blocker.id);
+  });
+});
+
+describe('react — challenge on character action', () => {
+  test('contestar tax com sucesso (ator não tem duque) ator perde influência', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    // ensure actor does NOT have duke
+    state.players.find(p => p.id === actor).cards = [
+      { character: 'captain', revealed: false },
+      { character: 'countess', revealed: false },
+    ];
+    GameEngine.applyAction(state, actor, { type: ACTIONS.TAX });
+    const challenger = state.players.find(p => p.id !== actor);
+    GameEngine.applyReaction(state, challenger.id, { response: 'challenge' });
+    expect(state.phase).toBe(PHASES.LOSE_INFLUENCE);
+    expect(state.pendingAction.target).toBe(actor);
+  });
+
+  test('contestar tax sem sucesso (ator tem duque) contestador perde influência, ação resolve após', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    state.players.find(p => p.id === actor).cards = [
+      { character: 'duke', revealed: false },
+      { character: 'countess', revealed: false },
+    ];
+    GameEngine.applyAction(state, actor, { type: ACTIONS.TAX });
+    const challenger = state.players.find(p => p.id !== actor);
+    GameEngine.applyReaction(state, challenger.id, { response: 'challenge' });
+    // challenger must lose influence
+    expect(state.phase).toBe(PHASES.LOSE_INFLUENCE);
+    expect(state.pendingAction.target).toBe(challenger.id);
+    // after challenger reveals a card, tax resolves: actor gets +3 coins
+    const initialCoins = state.players.find(p => p.id === actor).coins;
+    GameEngine.loseInfluence(state, challenger.id, 0);
+    expect(state.players.find(p => p.id === actor).coins).toBe(initialCoins + 3);
+  });
+});
