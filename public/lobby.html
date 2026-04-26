@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Coup — Lobby</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="card-panel">
+      <div class="title" id="roomTitle">Sala ---</div>
+      <div class="subtitle" id="playerCount">Aguardando jogadores</div>
+    </div>
+
+    <div class="card-panel">
+      <div class="section-label">Jogadores</div>
+      <div id="playerList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <div class="card-panel" id="hostControls" style="display:none;">
+      <div class="section-label">Variante</div>
+      <div class="toggle-row" style="margin-bottom:12px;">
+        <button class="toggle-btn active" id="btnAmbassador" onclick="setVariant('ambassador')">Embaixador</button>
+        <button class="toggle-btn" id="btnInquisitor" onclick="setVariant('inquisitor')">Inquisidor</button>
+      </div>
+      <button class="btn btn-primary" id="btnStart">INICIAR PARTIDA</button>
+    </div>
+
+    <div class="card-panel" id="guestWait" style="display:none;">
+      <p style="text-align:center; color: var(--brown); font-size:13px;">Aguardando o host iniciar...</p>
+    </div>
+
+    <p id="errorMsg" style="color: var(--red); font-size:13px; text-align:center; min-height:18px;"></p>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/lobby.js"></script>
+</body>
+</html>
