@@ -148,3 +148,64 @@ describe('react — challenge on character action', () => {
     expect(state.players.find(p => p.id === actor).coins).toBe(initialCoins + 3);
   });
 });
+
+describe('exchange (ambassador)', () => {
+  test('inicia EXCHANGE_CARDS com opções após todos passarem', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    state.players.find(p => p.id === actor).cards = [
+      { character: 'ambassador', revealed: false },
+      { character: 'captain', revealed: false },
+    ];
+    GameEngine.applyAction(state, actor, { type: ACTIONS.EXCHANGE });
+    const others = state.players.filter(p => p.id !== actor);
+    others.forEach(p => GameEngine.applyReaction(state, p.id, { response: 'pass' }));
+    expect(state.phase).toBe(PHASES.EXCHANGE_CARDS);
+    const actorState = state.players.find(p => p.id === actor);
+    expect(actorState._exchangeOptions).toHaveLength(4); // 2 hand + 2 drawn
+  });
+});
+
+describe('applyExchangeChoice', () => {
+  test('jogador mantém 2 cartas e devolve o resto ao baralho', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    state.players.find(p => p.id === actor)._exchangeOptions = [
+      { character: 'duke', revealed: false },
+      { character: 'captain', revealed: false },
+      { character: 'countess', revealed: false },
+      { character: 'assassin', revealed: false },
+    ];
+    state.phase = PHASES.EXCHANGE_CARDS;
+    state.pendingAction = { actor, type: ACTIONS.EXCHANGE };
+    const deckBefore = state.deck.length;
+    GameEngine.applyExchangeChoice(state, actor, [0, 2]);
+    expect(state.players.find(p => p.id === actor).cards).toHaveLength(2);
+    expect(state.players.find(p => p.id === actor).cards[0].character).toBe('duke');
+    expect(state.players.find(p => p.id === actor).cards[1].character).toBe('countess');
+    expect(state.deck.length).toBe(deckBefore + 2);
+  });
+});
+
+describe('assassinato duplo', () => {
+  test('contestar assassino sem sucesso causa 2 perdas de influência', () => {
+    const state = makeState(3);
+    const actor = state.currentPlayer;
+    const target = state.players.find(p => p.id !== actor).id;
+    state.players.find(p => p.id === actor).cards = [
+      { character: 'assassin', revealed: false },
+      { character: 'duke', revealed: false },
+    ];
+    state.players.find(p => p.id === actor).coins = 3;
+    GameEngine.applyAction(state, actor, { type: ACTIONS.ASSASSINATE, target });
+    // target challenges and LOSES (actor has assassin)
+    GameEngine.applyReaction(state, target, { response: 'challenge' });
+    // target must lose one influence for failed challenge
+    expect(state.phase).toBe(PHASES.LOSE_INFLUENCE);
+    expect(state.pendingAction.target).toBe(target);
+    GameEngine.loseInfluence(state, target, 0);
+    // after losing from challenge, assassination still happens (second loss)
+    expect(state.phase).toBe(PHASES.LOSE_INFLUENCE);
+    expect(state.pendingAction.target).toBe(target);
+  });
+});

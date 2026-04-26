@@ -178,15 +178,52 @@ function resolveAction(state) {
 function afterLoseInfluence(state) {
   const pa = state.pendingAction;
   if (!pa) return nextPlayer(state);
+
   if (pa._afterChallengeLoss === 'action_resolves') {
     pa._afterChallengeLoss = null;
-    resolveAction(state);
+    if (pa.type === ACTIONS.ASSASSINATE) {
+      // Double murder: target already lost one card from challenge, now loses another from assassination
+      state.phase = PHASES.LOSE_INFLUENCE;
+      // target remains the same (original assassination target)
+    } else {
+      resolveAction(state);
+    }
   } else if (pa._afterChallengeLoss === 'block_upheld') {
     pa._afterChallengeLoss = null;
     nextPlayer(state);
   } else {
     nextPlayer(state);
   }
+}
+
+function applyExchangeChoice(state, playerId, keepIndexes) {
+  const player = state.players.find(p => p.id === playerId);
+  const options = player._exchangeOptions;
+  const kept = keepIndexes.map(i => options[i]);
+  const returned = options.filter((_, i) => !keepIndexes.includes(i));
+  player.cards = kept;
+  state.deck.push(...returned);
+  const { shuffle } = require('./Deck');
+  shuffle(state.deck);
+  delete player._exchangeOptions;
+  state.log.push(`${player.name} trocou cartas`);
+  nextPlayer(state);
+}
+
+function applyInvestigateDecision(state, playerId, forceSwap) {
+  const pa = state.pendingAction;
+  const target = state.players.find(p => p.id === pa.target);
+  if (forceSwap) {
+    const card = pa.investigatedCard;
+    const idx = target.cards.findIndex(c => c.character === card.character && !c.revealed);
+    const { dealCards, shuffle } = require('./Deck');
+    state.deck.push(target.cards[idx]);
+    const [newCard] = dealCards(state.deck, 1);
+    target.cards[idx] = { ...newCard, revealed: false };
+    shuffle(state.deck);
+    state.log.push(`Inquisidor forçou troca de carta de ${target.name}`);
+  }
+  nextPlayer(state);
 }
 
 function applyReaction(state, playerId, reaction) {
@@ -293,4 +330,8 @@ function applyReaction(state, playerId, reaction) {
   }
 }
 
-module.exports = { applyAction, applyReaction, afterLoseInfluence, loseInfluence, getValidActions, getActivePlayers, nextPlayer };
+module.exports = {
+  applyAction, applyReaction, afterLoseInfluence, loseInfluence,
+  applyExchangeChoice, applyInvestigateDecision,
+  getValidActions, getActivePlayers, nextPlayer,
+};
