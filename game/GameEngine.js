@@ -79,9 +79,13 @@ function applyAction(state, playerId, action) {
     blockCharacter: null,
     challengeBy: null,
   };
-  state.phase = PHASES.WAITING_REACTIONS;
   const targetName = action.target ? state.players.find(p => p.id === action.target)?.name : null;
   state.log.push(`${player.name} declara ${action.type}${targetName ? ' em ' + targetName : ''}`);
+  if (action.type === ACTIONS.INVESTIGATE) {
+    state.phase = PHASES.CHOOSE_INVESTIGATE_CARD;
+  } else {
+    state.phase = PHASES.WAITING_REACTIONS;
+  }
 }
 
 function loseInfluence(state, playerId, cardIndex) {
@@ -165,10 +169,7 @@ function resolveAction(state) {
   }
 
   if (type === ACTIONS.INVESTIGATE) {
-    const targetPlayer = state.players.find(p => p.id === target);
-    const hiddenCards = targetPlayer.cards.filter(c => !c.revealed);
-    state.pendingAction.investigatedCard = hiddenCards[0];
-    state.phase = PHASES.INVESTIGATE;
+    state.phase = PHASES.CHOOSE_INVESTIGATE_CARD;
     return;
   }
 
@@ -210,6 +211,41 @@ function applyExchangeChoice(state, playerId, keepIndexes) {
   nextPlayer(state);
 }
 
+function applyInvestigateContest(state, playerId) {
+  if (state.phase !== PHASES.CHOOSE_INVESTIGATE_CARD) throw new Error('Fase incorreta');
+  const pa = state.pendingAction;
+  if (playerId !== pa.target) throw new Error('Apenas o alvo pode contestar');
+  const actorPlayer = state.players.find(p => p.id === pa.actor);
+  if (hasCharacter(actorPlayer, CHARACTERS.INQUISITOR)) {
+    pa.challengeBy = playerId;
+    pa._afterChallengeLoss = 'action_resolves';
+    state.pendingAction.target = playerId;
+    state.phase = PHASES.LOSE_INFLUENCE;
+    state.log.push(`${actorPlayer.name} prova Inquisidor. ${state.players.find(p => p.id === playerId).name} perde influência.`);
+    const idx = actorPlayer.cards.findIndex(c => c.character === CHARACTERS.INQUISITOR && !c.revealed);
+    const { dealCards, shuffle } = require('./Deck');
+    state.deck.push(actorPlayer.cards[idx]);
+    const [newCard] = dealCards(state.deck, 1);
+    actorPlayer.cards[idx] = { ...newCard, revealed: false };
+    shuffle(state.deck);
+  } else {
+    pa.challengeBy = playerId;
+    pa._afterChallengeLoss = 'action_fails';
+    state.pendingAction.target = pa.actor;
+    state.phase = PHASES.LOSE_INFLUENCE;
+    state.log.push(`${actorPlayer.name} não tem Inquisidor. Perde influência.`);
+  }
+}
+
+function applyInvestigateCardChoice(state, playerId, cardIndex) {
+  const pa = state.pendingAction;
+  if (playerId !== pa.target) throw new Error('Não é você que está sendo investigado');
+  const targetPlayer = state.players.find(p => p.id === pa.target);
+  if (!targetPlayer || targetPlayer.cards[cardIndex]?.revealed) throw new Error('Carta inválida');
+  pa.investigatedCard = targetPlayer.cards[cardIndex];
+  state.phase = PHASES.INVESTIGATE;
+}
+
 function applyInvestigateDecision(state, playerId, forceSwap) {
   const pa = state.pendingAction;
   const target = state.players.find(p => p.id === pa.target);
@@ -237,10 +273,16 @@ function applyReaction(state, playerId, reaction) {
   if (state.phase === PHASES.WAITING_BLOCK_CHALLENGE) {
     if (reaction.response === 'pass') {
       if (!pa.respondedBy.includes(playerId)) pa.respondedBy.push(playerId);
-      const othersThanBlocker = state.players.filter(
-        p => p.id !== pa.blockBy && p.id !== pa.actor && p.cards.some(c => !c.revealed)
-      );
-      if (othersThanBlocker.every(p => pa.respondedBy.includes(p.id))) {
+      let accepted;
+      if (pa.type === ACTIONS.ASSASSINATE) {
+        accepted = pa.respondedBy.includes(pa.actor);
+      } else {
+        const othersThanBlocker = state.players.filter(
+          p => p.id !== pa.blockBy && p.id !== pa.actor && p.cards.some(c => !c.revealed)
+        );
+        accepted = othersThanBlocker.every(p => pa.respondedBy.includes(p.id));
+      }
+      if (accepted) {
         state.log.push('Bloqueio aceito. Ação falhou.');
         nextPlayer(state);
       }
@@ -275,26 +317,34 @@ function applyReaction(state, playerId, reaction) {
     }
   }
 
+  const TARGET_ONLY = [ACTIONS.ASSASSINATE, ACTIONS.EXTORT];
+
   // ---- WAITING_REACTIONS ----
   if (reaction.response === 'pass') {
     if (!pa.respondedBy.includes(playerId)) pa.respondedBy.push(playerId);
-    const othersExcludingActor = state.players.filter(
-      p => p.id !== pa.actor && p.cards.some(c => !c.revealed)
-    );
-    if (othersExcludingActor.every(p => pa.respondedBy.includes(p.id))) {
-      resolveAction(state);
+    let resolved;
+    if (TARGET_ONLY.includes(pa.type)) {
+      resolved = pa.respondedBy.includes(pa.target);
+    } else {
+      const othersExcludingActor = state.players.filter(
+        p => p.id !== pa.actor && p.cards.some(c => !c.revealed)
+      );
+      resolved = othersExcludingActor.every(p => pa.respondedBy.includes(p.id));
     }
+    if (resolved) resolveAction(state);
     return;
   }
 
   if (reaction.response === 'block') {
     if (!BLOCKERS[pa.type]) throw new Error('Ação não pode ser bloqueada');
     if (!BLOCKERS[pa.type].includes(reaction.character)) throw new Error('Personagem não bloqueia esta ação');
+    if (TARGET_ONLY.includes(pa.type) && playerId !== pa.target) throw new Error('Apenas o alvo pode bloquear esta ação');
     pa.blockBy = playerId;
     pa.blockCharacter = reaction.character;
     pa.respondedBy = [];
     state.phase = PHASES.WAITING_BLOCK_CHALLENGE;
-    state.log.push(`${state.players.find(p => p.id === playerId).name} bloqueia com ${reaction.character}`);
+    const ACTION_LABELS = { foreign_aid: 'Ajuda Externa', assassinate: 'Assassinar', extort: 'Extorquir' };
+    state.log.push(`${state.players.find(p => p.id === playerId).name} está bloqueando ${ACTION_LABELS[pa.type] || pa.type}`);
     return;
   }
 
@@ -332,6 +382,6 @@ function applyReaction(state, playerId, reaction) {
 
 module.exports = {
   applyAction, applyReaction, afterLoseInfluence, loseInfluence,
-  applyExchangeChoice, applyInvestigateDecision,
+  applyExchangeChoice, applyInvestigateContest, applyInvestigateCardChoice, applyInvestigateDecision,
   getValidActions, getActivePlayers, nextPlayer,
 };

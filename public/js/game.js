@@ -2,8 +2,6 @@ const socket = io();
 const myName = sessionStorage.getItem('playerName');
 let gameState = null;
 let myId = null;
-let timerInterval = null;
-let timerEnd = null;
 let exchangeSelected = [];
 let pendingAction = null;
 
@@ -31,7 +29,12 @@ function isMyTurn() {
   return self && gameState?.currentPlayer === self.id;
 }
 
-socket.on('connect', () => { myId = socket.id; });
+socket.on('connect', () => {
+  myId = socket.id;
+  const roomCode = sessionStorage.getItem('roomCode');
+  const playerName = sessionStorage.getItem('playerName');
+  if (roomCode && playerName) socket.emit('room:join', { roomCode, playerName });
+});
 
 socket.on('game:state', (state) => {
   gameState = state;
@@ -41,6 +44,7 @@ socket.on('game:state', (state) => {
 socket.on('game:prompt', (prompt) => {
   if (prompt.type === 'lose_influence') showLoseInfluence();
   if (prompt.type === 'exchange_cards') showExchange(prompt.options);
+  if (prompt.type === 'choose_investigate_card') showChooseInvestigateCard();
   if (prompt.type === 'investigate') showInvestigate(prompt);
 });
 
@@ -90,7 +94,6 @@ function render() {
     renderReaction();
   } else {
     hideAll('reactionOverlay');
-    stopTimer();
   }
 }
 
@@ -172,6 +175,10 @@ function renderReaction() {
   if (!pa) return;
   const self = me();
   if (!self || self.cards.every(c => c.revealed)) return;
+  if (gameState.phase === 'WAITING_REACTIONS' && self.id === pa.actor) return;
+  if (gameState.phase === 'WAITING_REACTIONS' && ['assassinate','extort'].includes(pa.type) && self.id !== pa.target) return;
+  if (gameState.phase === 'WAITING_BLOCK_CHALLENGE' && self.id === pa.blockBy) return;
+  if (gameState.phase === 'WAITING_BLOCK_CHALLENGE' && pa.type === 'assassinate' && self.id !== pa.actor) return;
   if (pa.respondedBy?.includes(self.id)) return;
 
   const actorName = gameState.players.find(p => p.id === pa.actor)?.name;
@@ -203,30 +210,13 @@ function renderReaction() {
   document.getElementById('btnPass').onclick = () => react('pass');
   document.getElementById('btnChallenge').onclick = () => react('challenge');
   show('reactionOverlay');
-  startTimer(15);
 }
 
 function react(response, character = null) {
   hideAll('reactionOverlay');
-  stopTimer();
   socket.emit('player:react', { response, character });
 }
 window.react = react;
-
-function startTimer(seconds) {
-  stopTimer();
-  timerEnd = Date.now() + seconds * 1000;
-  const el = document.getElementById('reactionTimer');
-  timerInterval = setInterval(() => {
-    const remaining = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
-    el.textContent = `${remaining}s`;
-    if (remaining === 0) stopTimer();
-  }, 200);
-}
-
-function stopTimer() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-}
 
 function showLoseInfluence() {
   const self = me();
@@ -263,6 +253,25 @@ window.toggleExchange = function(i) {
 document.getElementById('btnConfirmExchange').addEventListener('click', () => {
   hideAll('exchangeOverlay');
   socket.emit('player:exchange-choose', { keepIndexes: exchangeSelected });
+});
+
+function showChooseInvestigateCard() {
+  const self = me();
+  if (!self) return;
+  document.getElementById('chooseInvestigateOptions').innerHTML = self.cards.map((c, i) =>
+    c.revealed ? '' : `<button class="btn btn-dark" onclick="revealToInquisitor(${i})">${CHARACTER_NAMES[c.character] || '?'}</button>`
+  ).join('');
+  show('chooseInvestigateOverlay');
+}
+
+window.revealToInquisitor = function(index) {
+  hideAll('chooseInvestigateOverlay');
+  socket.emit('player:investigate-show', { cardIndex: index });
+};
+
+document.getElementById('btnContestInvestigate').addEventListener('click', () => {
+  hideAll('chooseInvestigateOverlay');
+  socket.emit('player:investigate-contest');
 });
 
 function showInvestigate(prompt) {

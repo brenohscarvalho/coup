@@ -31,20 +31,6 @@ function promptPlayer(room, playerId, prompt) {
   if (socket) socket.emit('game:prompt', prompt);
 }
 
-function startReactionTimer(room) {
-  const REACTION_MS = 15000;
-  room.startReactionTimer(REACTION_MS, () => {
-    const pa = room.gameState.pendingAction;
-    if (!pa) return;
-    const active = GameEngine.getActivePlayers(room.gameState);
-    active
-      .filter(p => p.id !== pa.actor && !pa.respondedBy.includes(p.id))
-      .forEach(p => {
-        try { GameEngine.applyReaction(room.gameState, p.id, { response: 'pass' }); } catch (_) {}
-      });
-    broadcast(room);
-  });
-}
 
 function findRoomByPlayer(playerId) {
   return [...rooms.values()].find(r => r.players.some(p => p.id === playerId));
@@ -74,6 +60,16 @@ io.on('connection', (socket) => {
         socket.emit('game:state', filterStateForPlayer(room.gameState, socket.id));
         return;
       }
+      // Pre-game: player may already exist due to page navigation creating a new socket
+      const existing = room.players.find(p => p.name === playerName);
+      if (existing) {
+        if (room.hostId === existing.id) room.hostId = socket.id;
+        existing.id = socket.id;
+        existing.connected = true;
+        socket.join(roomCode);
+        io.to(roomCode).emit('lobby:update', { players: room.players });
+        return;
+      }
       room.addPlayer(socket.id, playerName);
       socket.join(roomCode);
       io.to(roomCode).emit('lobby:update', { players: room.players });
@@ -99,11 +95,13 @@ io.on('connection', (socket) => {
     if (!room?.gameState) return;
     try {
       GameEngine.applyAction(room.gameState, socket.id, action);
-      room.clearReactionTimer();
-      if ([PHASES.WAITING_REACTIONS, PHASES.WAITING_BLOCK_CHALLENGE].includes(room.gameState.phase)) {
-        startReactionTimer(room);
-      }
       broadcast(room);
+      if (room.gameState.phase === PHASES.CHOOSE_INVESTIGATE_CARD) {
+        promptPlayer(room, room.gameState.pendingAction.target, {
+          type: 'choose_investigate_card',
+          message: 'Escolha qual carta mostrar ao Inquisidor',
+        });
+      }
       if (room.gameState.phase === PHASES.LOSE_INFLUENCE) {
         promptPlayer(room, room.gameState.pendingAction.target, {
           type: 'lose_influence',
@@ -120,9 +118,6 @@ io.on('connection', (socket) => {
     if (!room?.gameState) return;
     try {
       GameEngine.applyReaction(room.gameState, socket.id, reaction);
-      if (![PHASES.WAITING_REACTIONS, PHASES.WAITING_BLOCK_CHALLENGE].includes(room.gameState.phase)) {
-        room.clearReactionTimer();
-      }
       broadcast(room);
       if (room.gameState.phase === PHASES.LOSE_INFLUENCE) {
         promptPlayer(room, room.gameState.pendingAction.target, {
@@ -135,6 +130,12 @@ io.on('connection', (socket) => {
         const opts = room.gameState.players.find(p => p.id === actor)?._exchangeOptions;
         promptPlayer(room, actor, { type: 'exchange_cards', options: opts });
       }
+      if (room.gameState.phase === PHASES.CHOOSE_INVESTIGATE_CARD) {
+        promptPlayer(room, room.gameState.pendingAction.target, {
+          type: 'choose_investigate_card',
+          message: 'Escolha qual carta mostrar ao Inquisidor',
+        });
+      }
       if (room.gameState.phase === PHASES.INVESTIGATE) {
         promptPlayer(room, room.gameState.pendingAction.actor, {
           type: 'investigate',
@@ -142,6 +143,39 @@ io.on('connection', (socket) => {
           targetName: room.gameState.players.find(p => p.id === room.gameState.pendingAction.target)?.name,
         });
       }
+    } catch (e) {
+      socket.emit('game:error', { message: e.message });
+    }
+  });
+
+  socket.on('player:investigate-contest', () => {
+    const room = findRoomByPlayer(socket.id);
+    if (!room?.gameState) return;
+    try {
+      GameEngine.applyInvestigateContest(room.gameState, socket.id);
+      broadcast(room);
+      if (room.gameState.phase === PHASES.LOSE_INFLUENCE) {
+        promptPlayer(room, room.gameState.pendingAction.target, {
+          type: 'lose_influence',
+          message: 'Escolha qual carta revelar',
+        });
+      }
+    } catch (e) {
+      socket.emit('game:error', { message: e.message });
+    }
+  });
+
+  socket.on('player:investigate-show', ({ cardIndex }) => {
+    const room = findRoomByPlayer(socket.id);
+    if (!room?.gameState) return;
+    try {
+      GameEngine.applyInvestigateCardChoice(room.gameState, socket.id, cardIndex);
+      broadcast(room);
+      promptPlayer(room, room.gameState.pendingAction.actor, {
+        type: 'investigate',
+        card: room.gameState.pendingAction.investigatedCard,
+        targetName: room.gameState.players.find(p => p.id === room.gameState.pendingAction.target)?.name,
+      });
     } catch (e) {
       socket.emit('game:error', { message: e.message });
     }
@@ -204,6 +238,9 @@ io.on('connection', (socket) => {
 const PORT = 3000;
 httpServer.listen(PORT, '0.0.0.0', () => {
   const nets = os.networkInterfaces();
-  const ip = Object.values(nets).flat().find(n => n.family === 'IPv4' && !n.internal)?.address || 'localhost';
+  const allIps = Object.values(nets).flat().filter(n => n.family === 'IPv4' && !n.internal);
+  const ip = allIps.find(n => /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))\./.test(n.address))?.address
+    || allIps[0]?.address
+    || 'localhost';
   console.log(`\n⚜  Coup rodando em http://${ip}:${PORT}\n`);
 });

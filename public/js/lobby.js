@@ -7,12 +7,13 @@ let selectedVariant = 'ambassador';
 document.getElementById('roomTitle').textContent = `Sala ${roomCode}`;
 document.getElementById(isHost ? 'hostControls' : 'guestWait').style.display = '';
 
+// Re-register with server — page navigation creates a new socket ID
+socket.emit('room:join', { roomCode, playerName });
+
 if (isHost) {
   document.getElementById('btnStart').addEventListener('click', () => {
     socket.emit('room:start', { variant: selectedVariant });
   });
-} else {
-  socket.emit('room:join', { roomCode, playerName });
 }
 
 window.setVariant = function(v) {

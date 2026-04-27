@@ -35,7 +35,7 @@ class Room extends EventEmitter {
   }
 
   reconnect(newId, name) {
-    const p = this.players.find(p => p.name === name && !p.connected);
+    const p = this.players.find(p => p.name === name);
     if (!p) return false;
     const oldId = p.id;
     p.id = newId;
@@ -43,6 +43,15 @@ class Room extends EventEmitter {
     if (this.gameState) {
       const gp = this.gameState.players.find(g => g.id === oldId);
       if (gp) { gp.id = newId; gp.connected = true; }
+      if (this.gameState.currentPlayer === oldId) this.gameState.currentPlayer = newId;
+      const pa = this.gameState.pendingAction;
+      if (pa) {
+        if (pa.actor === oldId) pa.actor = newId;
+        if (pa.target === oldId) pa.target = newId;
+        if (pa.blockBy === oldId) pa.blockBy = newId;
+        if (pa.challengeBy === oldId) pa.challengeBy = newId;
+        pa.respondedBy = pa.respondedBy.map(id => id === oldId ? newId : id);
+      }
     }
     clearTimeout(this.reconnectTimers[oldId]);
     delete this.reconnectTimers[oldId];

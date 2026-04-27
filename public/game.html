@@ -63,8 +63,7 @@
         <div class="reaction-sub" id="reactionSub">-</div>
       </div>
       <div style="margin:10px 0;" class="reactions-passed" id="reactionsPassed"></div>
-      <div class="timer" id="reactionTimer"></div>
-      <div class="actions" style="margin-top:12px;">
+<div class="actions" style="margin-top:12px;">
         <button class="btn btn-green" id="btnPass">✓ PASSAR</button>
         <div id="blockOptions"></div>
         <button class="btn btn-outline" id="btnChallenge" style="display:none;">⚔ CONTESTAR</button>
@@ -87,6 +86,16 @@
       <div class="subtitle" id="exchangeSubtitle"></div>
       <div class="actions" style="margin-top:12px;" id="exchangeOptions"></div>
       <button class="btn btn-primary" style="margin-top:12px;" id="btnConfirmExchange">CONFIRMAR</button>
+    </div>
+  </div>
+
+  <!-- Overlay: Escolher carta a mostrar -->
+  <div class="overlay hidden" id="chooseInvestigateOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-title">Inquisidor quer ver uma carta</div>
+      <div class="subtitle">Escolha qual carta mostrar ou conteste</div>
+      <div class="actions" style="margin-top:12px;" id="chooseInvestigateOptions"></div>
+      <button class="btn btn-outline" style="margin-top:8px;" id="btnContestInvestigate">⚔ CONTESTAR</button>
     </div>
   </div>
 
