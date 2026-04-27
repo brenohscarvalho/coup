@@ -50,6 +50,16 @@ socket.on('game:prompt', (prompt) => {
 
 socket.on('game:error', ({ message }) => alert(message));
 
+window.restartGame = function() {
+  socket.emit('room:restart');
+};
+
+socket.on('room:restarted', ({ roomCode, isHost }) => {
+  sessionStorage.setItem('roomCode', roomCode);
+  sessionStorage.setItem('isHost', isHost ? '1' : '0');
+  window.location.href = '/lobby.html';
+});
+
 function render() {
   if (!gameState) return;
   const self = me();

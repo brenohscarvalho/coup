@@ -23,12 +23,15 @@ window.setVariant = function(v) {
 };
 
 socket.on('lobby:update', ({ players }) => {
-  document.getElementById('playerCount').textContent = `${players.length}/10 jogadores`;
+  const inLobbyCount = players.filter(p => p.inLobby).length;
+  document.getElementById('playerCount').textContent = `${inLobbyCount}/${players.length} jogadores prontos`;
   const list = document.getElementById('playerList');
   list.innerHTML = players.map((p, i) =>
     `<div class="player-row">
       <span>${p.name}${i === 0 ? ' 👑' : ''}</span>
-      <span style="color:var(--green);font-size:12px;">✓</span>
+      ${p.inLobby
+        ? '<span style="color:var(--green);font-size:12px;">✓</span>'
+        : '<span style="color:var(--red);font-size:12px;">✕</span>'}
     </div>`
   ).join('');
 });

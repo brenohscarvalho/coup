@@ -66,11 +66,13 @@ io.on('connection', (socket) => {
         if (room.hostId === existing.id) room.hostId = socket.id;
         existing.id = socket.id;
         existing.connected = true;
+        existing.inLobby = true;
         socket.join(roomCode);
         io.to(roomCode).emit('lobby:update', { players: room.players });
         return;
       }
       room.addPlayer(socket.id, playerName);
+      room.players.find(p => p.id === socket.id).inLobby = true;
       socket.join(roomCode);
       io.to(roomCode).emit('lobby:update', { players: room.players });
     } catch (e) {
@@ -83,6 +85,7 @@ io.on('connection', (socket) => {
       const room = [...rooms.values()].find(r => r.hostId === socket.id);
       if (!room) throw new Error('Não é o host');
       if (room.players.length < 2) throw new Error('Mínimo 2 jogadores');
+      room.players.forEach(p => { p.inLobby = false; });
       room.gameState = createGameState(room.code, room.players, variant || 'ambassador');
       broadcast(room);
     } catch (e) {
@@ -223,6 +226,23 @@ io.on('connection', (socket) => {
     } catch (e) {
       socket.emit('game:error', { message: e.message });
     }
+  });
+
+  socket.on('room:restart', () => {
+    const room = findRoomByPlayer(socket.id);
+    if (!room) return;
+    // Clear game state if game is over so lobby works for returning players
+    if (room.gameState && room.gameState.phase === 'GAME_OVER') {
+      room.gameState = null;
+    }
+    const player = room.players.find(p => p.id === socket.id);
+    if (player) player.inLobby = true;
+    socket.emit('room:restarted', {
+      roomCode: room.code,
+      isHost: socket.id === room.hostId,
+    });
+    // Broadcast updated player list to lobby viewers
+    io.to(room.code).emit('lobby:update', { players: room.players });
   });
 
   socket.on('disconnect', () => {

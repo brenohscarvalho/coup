@@ -40,6 +40,7 @@ class Room extends EventEmitter {
     const oldId = p.id;
     p.id = newId;
     p.connected = true;
+    if (this.hostId === oldId) this.hostId = newId;
     if (this.gameState) {
       const gp = this.gameState.players.find(g => g.id === oldId);
       if (gp) { gp.id = newId; gp.connected = true; }
