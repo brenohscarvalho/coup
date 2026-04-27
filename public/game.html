@@ -2,134 +2,186 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Coup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>COUP</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <!-- Tela principal -->
-  <div class="page" id="mainScreen">
-    <div class="card-panel" style="padding:10px 14px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:12px;color:var(--brown);">Tesouro: <strong id="treasury">-</strong> 💰</span>
-        <span style="font-size:12px;color:var(--brown);" id="turnInfo">-</span>
-      </div>
-    </div>
 
-    <!-- Outros jogadores -->
-    <div class="card-panel">
-      <div class="section-label">Jogadores</div>
-      <div id="otherPlayers" style="display:flex;flex-direction:column;gap:6px;"></div>
-    </div>
+<!-- ═══════════════ GAME ROOT ═══════════════ -->
+<div id="game-root">
 
-    <!-- Suas cartas -->
-    <div class="card-panel">
-      <div class="section-label">Suas cartas</div>
-      <div class="my-cards" id="myCards"></div>
-      <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--brown-dark);">💰 <strong id="myCoins">-</strong> moedas</div>
+  <!-- Top bar -->
+  <div id="top-bar">
+    <div id="treasury-pill">
+      <span id="treasury-top-coin"></span>
+      <span id="treasury-top-count" style="font-size:13px;font-weight:700;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;"></span>
+      <span style="font-size:8px;color:rgba(245,230,200,.25);letter-spacing:2px;text-transform:uppercase;">Tesouro</span>
     </div>
-
-    <!-- Ações (só no seu turno) -->
-    <div class="card-panel" id="actionsPanel" style="display:none;">
-      <div id="generalActions" style="margin-bottom:10px;">
-        <div class="section-label">Ações Gerais</div>
-        <div class="actions" id="generalActionsButtons"></div>
-      </div>
-      <div id="myCardActions" style="margin-bottom:10px;">
-        <div class="section-label">Suas Cartas</div>
-        <div class="actions" id="myCardActionsButtons"></div>
-      </div>
-      <div id="bluffActions">
-        <div class="section-label">Blefar como...</div>
-        <div class="actions" id="bluffActionsButtons"></div>
-      </div>
-      <div style="margin-top:10px;">
-        <button class="btn btn-red" id="btnCoup" style="display:none;">Golpe de Estado (💰7)</button>
-      </div>
-    </div>
-
-    <!-- Log -->
-    <div class="card-panel">
-      <div class="section-label">Log</div>
-      <div class="log" id="gameLog"></div>
-    </div>
+    <div id="header-title">COUP</div>
+    <div id="turn-pill" class="waiting">Aguardando</div>
   </div>
 
-  <!-- Overlay: Reagir -->
-  <div class="overlay hidden" id="reactionOverlay">
-    <div class="overlay-panel">
-      <div class="reaction-info">
-        <div class="reaction-name" id="reactionTitle">-</div>
-        <div class="reaction-sub" id="reactionSub">-</div>
-      </div>
-      <div style="margin:10px 0;" class="reactions-passed" id="reactionsPassed"></div>
-<div class="actions" style="margin-top:12px;">
-        <button class="btn btn-green" id="btnPass">✓ PASSAR</button>
-        <div id="blockOptions"></div>
-        <button class="btn btn-outline" id="btnChallenge" style="display:none;">⚔ CONTESTAR</button>
+  <!-- Oval table -->
+  <div id="table-area">
+    <div id="table-wrapper">
+      <!-- Opponent seats injected here by JS -->
+      <div id="player-seats"></div>
+
+      <!-- Table visual -->
+      <div id="table-visual">
+        <div id="wood-rail"></div>
+        <div id="gold-trim"></div>
+        <div id="gold-trim2"></div>
+        <div id="felt">
+          <div id="table-brand">✦ COUP ✦</div>
+          <div id="treasury-felt-pill">
+            <span id="treasury-felt-coin"></span>
+            <span id="treasury-felt-count" style="font-size:11px;font-weight:700;color:var(--gold);font-family:'Cinzel',serif;"></span>
+            <span style="font-size:7px;color:rgba(255,255,255,.25);letter-spacing:2px;text-transform:uppercase;">tesouro</span>
+          </div>
+          <div id="game-log-container"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Overlay: Perder influência -->
-  <div class="overlay hidden" id="loseInfluenceOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-title">Escolha qual carta revelar</div>
-      <div class="actions" id="loseInfluenceOptions"></div>
-    </div>
-  </div>
-
-  <!-- Overlay: Trocar cartas -->
-  <div class="overlay hidden" id="exchangeOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-title">Escolha as cartas que quer manter</div>
-      <div class="subtitle" id="exchangeSubtitle"></div>
-      <div class="actions" style="margin-top:12px;" id="exchangeOptions"></div>
-      <button class="btn btn-primary" style="margin-top:12px;" id="btnConfirmExchange">CONFIRMAR</button>
-    </div>
-  </div>
-
-  <!-- Overlay: Escolher carta a mostrar -->
-  <div class="overlay hidden" id="chooseInvestigateOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-title">Inquisidor quer ver uma carta</div>
-      <div class="subtitle">Escolha qual carta mostrar ou conteste</div>
-      <div class="actions" style="margin-top:12px;" id="chooseInvestigateOptions"></div>
-      <button class="btn btn-outline" style="margin-top:8px;" id="btnContestInvestigate">⚔ CONTESTAR</button>
-    </div>
-  </div>
-
-  <!-- Overlay: Investigar -->
-  <div class="overlay hidden" id="investigateOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-title" id="investigateTitle">Carta vista</div>
-      <div class="my-card" style="margin:12px auto;width:fit-content;" id="investigatedCard">-</div>
-      <div class="actions" style="margin-top:12px;">
-        <button class="btn btn-red" id="btnForceSwap">Forçar troca</button>
-        <button class="btn btn-green" id="btnKeepCard">Manter carta</button>
+  <!-- My area -->
+  <div id="my-area">
+    <div id="my-profile">
+      <div id="my-avatar"></div>
+      <div>
+        <div id="my-name-text"></div>
+        <div id="my-coins-label"></div>
       </div>
     </div>
-  </div>
-
-  <!-- Overlay: Fim de jogo -->
-  <div class="overlay hidden" id="gameOverOverlay">
-    <div class="overlay-panel" style="text-align:center;">
-      <div class="overlay-title">⚜ Fim da Partida ⚜</div>
-      <div id="winnerName" style="font-family:serif;font-size:20px;color:var(--brown-dark);margin:12px 0;">-</div>
-      <button class="btn btn-primary" onclick="restartGame()">Jogar novamente</button>
+    <div id="my-cards-row"></div>
+    <div id="my-cta">
+      <button id="btn-agir" class="hidden">AGIR ▶</button>
+      <button id="btn-help" onclick="document.getElementById('modal-help').classList.remove('hidden')" style="
+        width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(201,146,42,.3);
+        background:rgba(0,0,0,.2); color:rgba(245,230,200,.45);
+        font-size:14px; font-weight:700; cursor:pointer; line-height:1;
+      ">?</button>
     </div>
   </div>
+</div>
 
-  <!-- Overlay: Escolher alvo -->
-  <div class="overlay hidden" id="targetOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-title" id="targetTitle">Escolha o alvo</div>
-      <div class="actions" id="targetOptions"></div>
-      <button class="btn btn-outline" style="margin-top:8px;" id="btnCancelTarget">Cancelar</button>
+<!-- ═══════════════ MODAL: ACTIONS ═══════════════ -->
+<div id="modal-actions" class="modal-overlay hidden">
+  <div class="modal-panel slide-up" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="margin-bottom:6px;">Escolha uma Ação</div>
+    <div id="actions-coins" style="text-align:center;margin-bottom:2px;"></div>
+    <div id="actions-container"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: REACTION / CHALLENGE ═══════════════ -->
+<div id="modal-reaction" class="modal-overlay center hidden">
+  <div class="modal-panel round fade-in">
+    <div class="modal-ornament">✦ ✦ ✦</div>
+    <div id="reaction-who" style="font-size:11px;color:var(--brown-light);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;"></div>
+    <div id="reaction-char-icon" class="hidden"></div>
+    <div id="reaction-action-name" class="modal-title lg"></div>
+    <div id="reaction-action-desc" class="modal-subtitle"></div>
+    <div class="modal-divider">
+      <div class="modal-divider-line"></div>
+      <span class="modal-divider-dot">✦</span>
+      <div class="modal-divider-line"></div>
+    </div>
+    <div id="reaction-btns"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: LOSE INFLUENCE ═══════════════ -->
+<div id="modal-lose" class="modal-overlay center hidden">
+  <div class="modal-panel round fade-in">
+    <div class="modal-ornament">✦ ✦ ✦</div>
+    <div class="modal-title lg">Escolha uma Carta</div>
+    <div class="modal-subtitle">Você deve revelar uma de suas cartas</div>
+    <div id="lose-cards" style="display:flex;justify-content:center;gap:14px;margin-bottom:8px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: EXCHANGE ═══════════════ -->
+<div id="modal-exchange" class="modal-overlay hidden">
+  <div class="modal-panel slide-up" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Trocar Cartas</div>
+    <div id="exchange-subtitle" class="modal-subtitle" style="margin-top:4px;margin-bottom:14px;"></div>
+    <div id="exchange-options" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <button id="btn-confirm-exchange" class="action-btn action-btn-solid" style="margin-top:12px;">CONFIRMAR</button>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: CHOOSE CARD TO SHOW INQUISITOR ═══════════════ -->
+<div id="modal-investigate-choose" class="modal-overlay center hidden">
+  <div class="modal-panel round fade-in">
+    <div class="modal-ornament">✦ ✦ ✦</div>
+    <div class="modal-title lg">Inquisidor quer ver</div>
+    <div class="modal-subtitle">Escolha qual carta mostrar ou conteste</div>
+    <div id="investigate-choose-cards" style="display:flex;justify-content:center;gap:14px;margin-bottom:16px;"></div>
+    <button id="btn-contest-investigate" class="react-btn react-btn-challenge">✕ CONTESTAR</button>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: SHOW INVESTIGATED CARD ═══════════════ -->
+<div id="modal-investigate-show" class="modal-overlay center hidden">
+  <div class="modal-panel round fade-in">
+    <div class="modal-ornament">✦ ✦ ✦</div>
+    <div id="investigate-title" class="modal-title lg" style="margin-bottom:16px;"></div>
+    <div id="investigate-card-display" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+    <button id="btn-force-swap" class="react-btn react-btn-challenge" style="margin-bottom:9px;">⚔ Forçar troca</button>
+    <button id="btn-keep-card"  class="react-btn react-btn-pass">✓ Manter carta</button>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL: TARGET PICKER ═══════════════ -->
+<div id="modal-target" class="modal-overlay center hidden">
+  <div class="modal-panel round fade-in">
+    <div class="modal-ornament">✦ ✦ ✦</div>
+    <div id="target-title" class="modal-title lg" style="margin-bottom:20px;"></div>
+    <div id="target-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+    <button id="btn-cancel-target" class="react-btn react-btn-challenge">Cancelar</button>
+  </div>
+</div>
+
+<!-- ═══════════════ GAME OVER SCREEN ═══════════════ -->
+<div id="screen-gameover"></div>
+
+<!-- ═══════════════ MODAL: HELP / DÚVIDAS ═══════════════ -->
+<div id="modal-help" class="modal-overlay hidden" onclick="this.classList.add('hidden')">
+  <div class="modal-panel slide-up" onclick="event.stopPropagation()" style="padding-bottom:32px;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="margin-bottom:16px;">Referência Rápida</div>
+
+    <div class="modal-section-label">Ações Gerais</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;">
+      <div class="help-row"><span class="help-name">Renda</span><span class="help-desc">+1 moeda</span></div>
+      <div class="help-row"><span class="help-name">Ajuda Externa</span><span class="help-desc">+2 moedas — pode ser bloqueada por Duque</span></div>
+      <div class="help-row"><span class="help-name">Golpe de Estado</span><span class="help-desc">−7 moedas, elimina carta de alguém (obrigatório com 10+)</span></div>
+    </div>
+
+    <div class="modal-section-label">Personagens</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;">
+      <div class="help-row"><span class="help-char" style="color:#7c3aed;">Duque</span><span class="help-desc">Taxar (+3). Bloqueia Ajuda Externa</span></div>
+      <div class="help-row"><span class="help-char" style="color:#dc2626;">Assassino</span><span class="help-desc">Assassinar (−3, elimina carta)</span></div>
+      <div class="help-row"><span class="help-char" style="color:#2563eb;">Capitão</span><span class="help-desc">Extorquir (+2 de alguém). Bloqueia Extorsão</span></div>
+      <div class="help-row"><span class="help-char" style="color:#db2777;">Condessa</span><span class="help-desc">Bloqueia Assassinato</span></div>
+      <div class="help-row"><span class="help-char" style="color:#ca8a04;">Embaixador</span><span class="help-desc">Trocar cartas com o baralho. Bloqueia Extorsão</span></div>
+      <div class="help-row"><span class="help-char" style="color:#059669;">Inquisidor</span><span class="help-desc">Investigar carta de alguém / trocar. Bloqueia Extorsão</span></div>
+    </div>
+
+    <div class="modal-section-label">Contestar &amp; Bloquear</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div class="help-row"><span class="help-name">Contestar</span><span class="help-desc">Se o alvo não tiver a carta, perde influência. Caso contrário você perde</span></div>
+      <div class="help-row"><span class="help-name">Bloquear</span><span class="help-desc">Pode ser contestado pelo ator original</span></div>
     </div>
   </div>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/game.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/game.js"></script>
 </body>
 </html>

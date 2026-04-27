@@ -2,33 +2,61 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Coup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>COUP</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <div class="page">
-    <div class="card-panel" style="margin-top: 40px;">
-      <div class="title">⚜ COUP ⚜</div>
-      <div class="subtitle">Cidade-Estado Italiana</div>
-    </div>
+<div class="lobby-wrap">
 
-    <div class="card-panel">
-      <label class="label">Seu nome</label>
-      <input class="input" id="playerName" placeholder="Alessandro" maxlength="16">
-    </div>
-
-    <div class="card-panel">
-      <p id="errorMsg" style="color: var(--red); font-size:13px; min-height:18px; text-align:center;"></p>
-      <button class="btn btn-primary" id="btnCreate">CRIAR SALA</button>
-      <div style="margin: 10px 0; text-align:center; color: var(--brown); font-size:12px;">ou</div>
-      <label class="label">Código da sala</label>
-      <input class="input" id="roomCode" placeholder="COUP-42" maxlength="10" style="margin-bottom:8px;">
-      <button class="btn btn-outline" id="btnJoin">ENTRAR NA SALA</button>
+  <!-- Title card -->
+  <div class="title-card">
+    <div class="title-ornament">✦ ✦ ✦</div>
+    <div class="title-main">COUP</div>
+    <div class="title-sub">Cidade-Estado Italiana</div>
+    <div class="title-divider">
+      <div class="title-divider-l"></div>
+      <span style="font-size:10px;color:rgba(201,146,42,.5)">✦</span>
+      <div class="title-divider-r"></div>
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/index.js"></script>
+  <!-- Form card -->
+  <div class="form-card">
+    <div style="margin-bottom:16px;">
+      <label class="form-label">Seu Nome</label>
+      <input class="form-input" id="playerName" placeholder="Digite seu nome..." maxlength="16">
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" id="tabCreate" onclick="setTab('create')">Criar Sala</button>
+      <button class="tab-btn"        id="tabJoin"   onclick="setTab('join')">Entrar na Sala</button>
+    </div>
+
+    <div id="joinSection" style="display:none;">
+      <label class="form-label">Código da Sala</label>
+      <input class="form-input" id="roomCode" placeholder="COUP-42" maxlength="10"
+             style="letter-spacing:2px;" oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <button class="primary-btn" id="btnCreate">CRIAR SALA</button>
+    <button class="primary-btn hidden" id="btnJoin">ENTRAR NA SALA</button>
+
+    <p class="error-msg" id="errorMsg"></p>
+  </div>
+
+</div>
+
+<script>
+function setTab(tab) {
+  document.getElementById('tabCreate').classList.toggle('active', tab === 'create');
+  document.getElementById('tabJoin').classList.toggle('active',   tab === 'join');
+  document.getElementById('joinSection').style.display = tab === 'join' ? '' : 'none';
+  document.getElementById('btnCreate').classList.toggle('hidden', tab !== 'create');
+  document.getElementById('btnJoin').classList.toggle('hidden',   tab !== 'join');
+}
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/index.js"></script>
 </body>
 </html>
