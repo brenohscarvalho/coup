@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COUP — Imagens das Cartas</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: var(--bg); min-height: 100vh; padding: 24px 16px 48px; }
+
+    .admin-wrap { max-width: 680px; margin: 0 auto; }
+
+    .admin-title {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--brown);
+      letter-spacing: 4px;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .admin-sub {
+      font-family: 'IM Fell English', serif;
+      font-size: 13px;
+      color: var(--brown-light);
+      text-align: center;
+      margin-bottom: 28px;
+      opacity: .7;
+    }
+
+    .char-block {
+      background: rgba(92,61,30,.13);
+      border: 1px solid rgba(201,146,42,.18);
+      border-radius: 12px;
+      padding: 18px 18px 14px;
+      margin-bottom: 16px;
+    }
+
+    .char-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .char-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .char-label {
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cream);
+      letter-spacing: 1.5px;
+      flex: 1;
+    }
+    .active-badge {
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(201,146,42,.18);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+    }
+
+    .slots-row {
+      display: flex;
+      gap: 14px;
+    }
+
+    .slot {
+      flex: 1;
+      border: 1.5px dashed rgba(201,146,42,.25);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      transition: border-color .2s;
+    }
+    .slot.has-image { border-style: solid; border-color: rgba(201,146,42,.45); }
+    .slot.is-active { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(201,146,42,.3); }
+
+    .slot-preview {
+      flex: 1;
+      background: rgba(0,0,0,.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100px;
+      overflow: hidden;
+    }
+    .slot-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .slot-empty-icon {
+      font-size: 28px;
+      opacity: .2;
+    }
+
+    .slot-footer {
+      padding: 8px 8px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: rgba(0,0,0,.18);
+    }
+    .slot-label {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: var(--brown-light);
+      font-family: 'Cinzel', serif;
+      text-align: center;
+      opacity: .7;
+    }
+
+    .slot-btns { display: flex; gap: 5px; }
+
+    .btn-upload {
+      flex: 1;
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 5px 4px;
+      border-radius: 5px;
+      border: 1px solid rgba(201,146,42,.3);
+      background: rgba(201,146,42,.08);
+      color: var(--gold);
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s;
+    }
+    .btn-upload:hover { background: rgba(201,146,42,.18); }
+
+    .btn-activate {
+      flex: 1;
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 5px 4px;
+      border-radius: 5px;
+      border: 1px solid rgba(100,200,120,.3);
+      background: rgba(100,200,120,.07);
+      color: #6db87e;
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s;
+    }
+    .btn-activate:hover { background: rgba(100,200,120,.17); }
+    .btn-activate.active-now {
+      background: rgba(100,200,120,.2);
+      border-color: rgba(100,200,120,.5);
+      color: #8ed49e;
+    }
+
+    .btn-delete {
+      width: 26px;
+      font-size: 12px;
+      padding: 5px 4px;
+      border-radius: 5px;
+      border: 1px solid rgba(200,60,60,.25);
+      background: rgba(200,60,60,.07);
+      color: #c87070;
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .btn-delete:hover { background: rgba(200,60,60,.18); }
+
+    .hidden-input { display: none; }
+
+    .toast-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30,20,10,.95);
+      border: 1px solid rgba(201,146,42,.35);
+      color: var(--cream);
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      letter-spacing: 1px;
+      padding: 10px 24px;
+      border-radius: 30px;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast-bar.show { opacity: 1; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      color: var(--brown-light);
+      opacity: .6;
+      letter-spacing: 1px;
+      cursor: pointer;
+      margin-top: 24px;
+      background: none;
+      border: none;
+      text-decoration: none;
+    }
+    .back-link:hover { opacity: .9; }
+  </style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <div style="text-align:center;margin-bottom:20px;">
+    <div class="title-ornament" style="font-size:12px;margin-bottom:8px;">✦ ✦ ✦</div>
+    <div class="admin-title">CARTAS</div>
+    <div class="admin-sub">Gerencie as imagens exibidas em cada carta</div>
+  </div>
+
+  <div id="chars-container"></div>
+
+  <a href="/" class="back-link">← Início</a>
+</div>
+
+<div id="toast" class="toast-bar"></div>
+
+<script>
+const CHARS = {
+  duke:       { name: 'Duque',      color: '#7c3aed' },
+  assassin:   { name: 'Assassino',  color: '#dc2626' },
+  captain:    { name: 'Capitão',    color: '#2563eb' },
+  countess:   { name: 'Condessa',   color: '#db2777' },
+  ambassador: { name: 'Embaixador', color: '#ca8a04' },
+  inquisitor: { name: 'Inquisidor', color: '#059669' },
+};
+
+let config = {};
+
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = isError ? '#e07070' : 'var(--cream)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+async function loadConfig() {
+  const res = await fetch('/admin/card-images');
+  config = await res.json();
+  renderAll();
+}
+
+function renderAll() {
+  const container = document.getElementById('chars-container');
+  container.innerHTML = Object.entries(CHARS).map(([key, ch]) => renderChar(key, ch)).join('');
+}
+
+function renderChar(key, ch) {
+  const cfg = config[key] || { 1: null, 2: null, active: null };
+  const activeSlot = cfg.active;
+
+  const slots = [1, 2].map(slot => {
+    const url = cfg[slot];
+    const isActive = activeSlot === slot;
+    return `
+      <div class="slot ${url ? 'has-image' : ''} ${isActive ? 'is-active' : ''}" id="slot-${key}-${slot}">
+        <div class="slot-preview">
+          ${url
+            ? `<img src="${url}?t=${Date.now()}" alt="">`
+            : `<span class="slot-empty-icon">⬜</span>`
+          }
+        </div>
+        <div class="slot-footer">
+          <div class="slot-label">OPÇÃO ${slot}${isActive ? ' · ATIVA' : ''}</div>
+          <div class="slot-btns">
+            <label class="btn-upload" title="Enviar imagem">
+              ▲ Upload
+              <input class="hidden-input" type="file" accept="image/*" onchange="uploadImage('${key}', ${slot}, this)">
+            </label>
+            ${url ? `
+              <button class="btn-activate ${isActive ? 'active-now' : ''}" onclick="setActive('${key}', ${slot})" title="${isActive ? 'Já ativa' : 'Ativar esta imagem'}">
+                ${isActive ? '✓ Ativa' : '◉ Usar'}
+              </button>
+              <button class="btn-delete" onclick="deleteImage('${key}', ${slot})" title="Remover">✕</button>
+            ` : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="char-block" id="char-${key}">
+      <div class="char-header">
+        <div class="char-dot" style="background:${ch.color};"></div>
+        <div class="char-label">${ch.name.toUpperCase()}</div>
+        ${activeSlot ? `<span class="active-badge">Opção ${activeSlot} ativa</span>` : ''}
+      </div>
+      <div class="slots-row">${slots}</div>
+    </div>`;
+}
+
+async function uploadImage(character, slot, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('image', file);
+  toast('Enviando...');
+  const res = await fetch(`/admin/upload/${character}/${slot}`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.error) { toast(data.error, true); return; }
+  toast('Imagem salva!');
+  await loadConfig();
+}
+
+async function setActive(character, slot) {
+  const cfg = config[character] || {};
+  const newSlot = cfg.active === slot ? '0' : String(slot);
+  await fetch(`/admin/set-active/${character}/${newSlot}`, { method: 'POST' });
+  toast(newSlot === '0' ? 'Imagem desativada' : `Opção ${slot} ativada`);
+  await loadConfig();
+}
+
+async function deleteImage(character, slot) {
+  if (!confirm(`Remover opção ${slot} de ${CHARS[character].name}?`)) return;
+  await fetch(`/admin/card-image/${character}/${slot}`, { method: 'DELETE' });
+  toast('Imagem removida');
+  await loadConfig();
+}
+
+loadConfig();
+</script>
+</body>
+</html>

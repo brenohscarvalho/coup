@@ -5,6 +5,9 @@ const myName   = sessionStorage.getItem('playerName');
 let gameState  = null;
 let pendingAction = null;
 let exchangeSelected = [];
+let cardImages = {};
+
+fetch('/admin/card-images').then(r => r.json()).then(d => { cardImages = d; }).catch(() => {});
 
 /* ── Character / action data ──────────────────────────────── */
 
@@ -88,11 +91,20 @@ function charCardHTML(character, size = 'md', eliminated = false) {
   const shadow = eliminated
     ? '0 2px 6px rgba(0,0,0,.4)'
     : `0 6px 18px rgba(0,0,0,.5),0 0 0 1px ${ch.accent}22`;
+
+  const imgCfg = cardImages[character];
+  const imgUrl = imgCfg?.active ? imgCfg[imgCfg.active] : null;
+
+  const artContent = imgUrl
+    ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${ch.name}">
+       ${eliminated ? '<div class="char-card-elim">✕</div>' : ''}`
+    : `<div class="char-card-art-inner"></div>
+       <span class="char-card-abbr" style="font-size:${abbFz}px;text-shadow:0 2px 10px rgba(0,0,0,.55),0 0 28px ${ch.accent}88;">${ch.abbr}</span>
+       ${eliminated ? '<div class="char-card-elim">✕</div>' : ''}`;
+
   return `<div class="char-card ${size}" style="width:${w}px;height:${h}px;border:1.5px solid ${ch.accent}55;box-shadow:${shadow};${op}">
-    <div class="char-card-art" style="height:${artH}px;background:linear-gradient(148deg,${ch.color},${ch.accent}cc);">
-      <div class="char-card-art-inner"></div>
-      <span class="char-card-abbr" style="font-size:${abbFz}px;text-shadow:0 2px 10px rgba(0,0,0,.55),0 0 28px ${ch.accent}88;">${ch.abbr}</span>
-      ${eliminated ? '<div class="char-card-elim">✕</div>' : ''}
+    <div class="char-card-art" style="height:${artH}px;${imgUrl ? '' : `background:linear-gradient(148deg,${ch.color},${ch.accent}cc);`}position:relative;overflow:hidden;">
+      ${artContent}
     </div>
     <div class="char-card-name" style="height:${nameH}px;">
       <span style="font-size:${nameFz}px;color:${ch.color};">${ch.name}</span>

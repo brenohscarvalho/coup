@@ -3,6 +3,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const os = require('os');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const Room = require('./game/Room');
 const { createGameState, filterStateForPlayer } = require('./game/GameState');
@@ -13,7 +15,97 @@ const app = express();
 const httpServer = http.createServer(app);
 const io = new Server(httpServer);
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+/* ── Card image config ────────────────────────────────────── */
+
+const CHARACTERS = ['duke','assassin','captain','countess','ambassador','inquisitor'];
+const CARD_IMAGES_PATH = path.join(__dirname, 'data', 'card-images.json');
+const CARDS_DIR = path.join(__dirname, 'public', 'images', 'cards');
+
+function loadCardImages() {
+  try { return JSON.parse(fs.readFileSync(CARD_IMAGES_PATH, 'utf8')); } catch { return {}; }
+}
+
+function saveCardImages(data) {
+  fs.writeFileSync(CARD_IMAGES_PATH, JSON.stringify(data, null, 2));
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, CARDS_DIR),
+    filename: (req, file, cb) => {
+      const { character, slot } = req.params;
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `${character}_${slot}${ext}`);
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    cb(null, /^image\/(jpeg|png|webp|gif)$/.test(file.mimetype));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+app.get('/admin/card-images', (req, res) => {
+  const config = loadCardImages();
+  const result = {};
+  for (const char of CHARACTERS) {
+    const cfg = config[char] || {};
+    const slot1File = fs.readdirSync(CARDS_DIR).find(f => f.startsWith(`${char}_1.`));
+    const slot2File = fs.readdirSync(CARDS_DIR).find(f => f.startsWith(`${char}_2.`));
+    result[char] = {
+      1: slot1File ? `/images/cards/${slot1File}` : null,
+      2: slot2File ? `/images/cards/${slot2File}` : null,
+      active: cfg.active ?? null,
+    };
+  }
+  res.json(result);
+});
+
+app.post('/admin/upload/:character/:slot', upload.single('image'), (req, res) => {
+  const { character, slot } = req.params;
+  if (!CHARACTERS.includes(character) || !['1','2'].includes(slot)) {
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+  const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+  const finalName = `${character}_${slot}${ext}`;
+  // Remove old file if extension changed
+  for (const f of fs.readdirSync(CARDS_DIR)) {
+    if (f.startsWith(`${character}_${slot}.`) && f !== finalName) fs.unlinkSync(path.join(CARDS_DIR, f));
+  }
+  const config = loadCardImages();
+  if (!config[character]) config[character] = {};
+  if (!config[character].active) config[character].active = parseInt(slot);
+  saveCardImages(config);
+  res.json({ url: `/images/cards/${req.file.filename}` });
+});
+
+app.post('/admin/set-active/:character/:slot', (req, res) => {
+  const { character, slot } = req.params;
+  if (!CHARACTERS.includes(character) || !['1','2','0'].includes(slot)) {
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
+  }
+  const config = loadCardImages();
+  if (!config[character]) config[character] = {};
+  config[character].active = slot === '0' ? null : parseInt(slot);
+  saveCardImages(config);
+  res.json({ ok: true });
+});
+
+app.delete('/admin/card-image/:character/:slot', (req, res) => {
+  const { character, slot } = req.params;
+  if (!CHARACTERS.includes(character) || !['1','2'].includes(slot)) {
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
+  }
+  const file = fs.readdirSync(CARDS_DIR).find(f => f.startsWith(`${character}_${slot}.`));
+  if (file) fs.unlinkSync(path.join(CARDS_DIR, file));
+  const config = loadCardImages();
+  if (config[character]?.active === parseInt(slot)) config[character].active = null;
+  saveCardImages(config);
+  res.json({ ok: true });
+});
 
 const rooms = new Map(); // roomCode -> Room
 
