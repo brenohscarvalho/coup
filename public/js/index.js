@@ -20,6 +20,7 @@ document.getElementById('btnJoin').addEventListener('click', () => {
   if (!code) return showError('Digite o código da sala');
   sessionStorage.setItem('playerName', name);
   sessionStorage.setItem('roomCode', code);
+  sessionStorage.setItem('isHost', '0');
   socket.emit('room:join', { roomCode: code, playerName: name });
 });
 
