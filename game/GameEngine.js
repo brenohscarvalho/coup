@@ -81,11 +81,7 @@ function applyAction(state, playerId, action) {
   };
   const targetName = action.target ? state.players.find(p => p.id === action.target)?.name : null;
   state.log.push(`${player.name} declara ${action.type}${targetName ? ' em ' + targetName : ''}`);
-  if (action.type === ACTIONS.INVESTIGATE) {
-    state.phase = PHASES.CHOOSE_INVESTIGATE_CARD;
-  } else {
-    state.phase = PHASES.WAITING_REACTIONS;
-  }
+  state.phase = PHASES.WAITING_REACTIONS;
 }
 
 function loseInfluence(state, playerId, cardIndex) {
@@ -317,7 +313,7 @@ function applyReaction(state, playerId, reaction) {
     }
   }
 
-  const TARGET_ONLY = [ACTIONS.ASSASSINATE, ACTIONS.EXTORT];
+  const TARGET_ONLY = [ACTIONS.ASSASSINATE, ACTIONS.EXTORT, ACTIONS.INVESTIGATE];
 
   // ---- WAITING_REACTIONS ----
   if (reaction.response === 'pass') {

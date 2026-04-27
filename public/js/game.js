@@ -176,7 +176,7 @@ function renderReaction() {
   const self = me();
   if (!self || self.cards.every(c => c.revealed)) return;
   if (gameState.phase === 'WAITING_REACTIONS' && self.id === pa.actor) return;
-  if (gameState.phase === 'WAITING_REACTIONS' && ['assassinate','extort'].includes(pa.type) && self.id !== pa.target) return;
+  if (gameState.phase === 'WAITING_REACTIONS' && ['assassinate','extort','investigate'].includes(pa.type) && self.id !== pa.target) return;
   if (gameState.phase === 'WAITING_BLOCK_CHALLENGE' && self.id === pa.blockBy) return;
   if (gameState.phase === 'WAITING_BLOCK_CHALLENGE' && pa.type === 'assassinate' && self.id !== pa.actor) return;
   if (pa.respondedBy?.includes(self.id)) return;
