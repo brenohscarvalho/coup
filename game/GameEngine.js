@@ -196,9 +196,12 @@ function afterLoseInfluence(state) {
 function applyExchangeChoice(state, playerId, keepIndexes) {
   const player = state.players.find(p => p.id === playerId);
   const options = player._exchangeOptions;
+  const activeCount = player.cards.filter(c => !c.revealed).length;
+  if (keepIndexes.length !== activeCount) throw new Error(`Deve manter exatamente ${activeCount} carta(s)`);
   const kept = keepIndexes.map(i => options[i]);
   const returned = options.filter((_, i) => !keepIndexes.includes(i));
-  player.cards = kept;
+  const revealedCards = player.cards.filter(c => c.revealed);
+  player.cards = [...revealedCards, ...kept];
   state.deck.push(...returned);
   const { shuffle } = require('./Deck');
   shuffle(state.deck);

@@ -246,11 +246,29 @@ function showExchange(options) {
 window.toggleExchange = function(i) {
   const btn = document.getElementById(`exOpt${i}`);
   const idx = exchangeSelected.indexOf(i);
-  if (idx === -1) { exchangeSelected.push(i); btn.classList.replace('btn-outline', 'btn-dark'); }
-  else { exchangeSelected.splice(idx, 1); btn.classList.replace('btn-dark', 'btn-outline'); }
+  if (idx === -1) {
+    const self = me();
+    const activeCount = self?.cards.filter(c => !c.revealed).length || 0;
+    // Se já atingiu o máximo, desseleciona a seleção anterior
+    while (exchangeSelected.length >= activeCount) {
+      const removed = exchangeSelected.shift();
+      document.getElementById(`exOpt${removed}`)?.classList.replace('btn-dark', 'btn-outline');
+    }
+    exchangeSelected.push(i);
+    btn.classList.replace('btn-outline', 'btn-dark');
+  } else {
+    exchangeSelected.splice(idx, 1);
+    btn.classList.replace('btn-dark', 'btn-outline');
+  }
 };
 
 document.getElementById('btnConfirmExchange').addEventListener('click', () => {
+  const self = me();
+  const activeCount = self?.cards.filter(c => !c.revealed).length || 0;
+  if (exchangeSelected.length !== activeCount) {
+    alert(`Selecione exatamente ${activeCount} carta(s) para manter`);
+    return;
+  }
   hideAll('exchangeOverlay');
   socket.emit('player:exchange-choose', { keepIndexes: exchangeSelected });
 });
