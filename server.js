@@ -47,6 +47,10 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 app.get('/admin/card-images', (req, res) => {
   const config = loadCardImages();
   const result = {};
